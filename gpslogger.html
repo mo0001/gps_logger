@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Location Logger</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .container {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            margin-top: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.2rem;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .coordinates {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .coordinate-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .coordinate-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #startBtn {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        #startBtn:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        #stopBtn {
+            background: #f44336;
+            color: white;
+        }
+        
+        #stopBtn:hover:not(:disabled) {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+        
+        #saveBtn {
+            background: #2196F3;
+            color: white;
+        }
+        
+        #saveBtn:hover:not(:disabled) {
+            background: #0b7dda;
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .log {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .log-item {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        .log-item:last-child {
+            border-bottom: none;
+        }
+        
+        .accuracy {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        
+        .high-accuracy {
+            background: #4CAF50;
+        }
+        
+        .medium-accuracy {
+            background: #FF9800;
+        }
+        
+        .low-accuracy {
+            background: #f44336;
+        }
+        
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>GPS Location Logger</h1>
+    
+    <div class="container">
+        <div class="status" id="status">
+            Ready to start tracking your location
+        </div>
+        
+        <div class="coordinates">
+            <div class="coordinate-item">
+                <span>Latitude:</span>
+                <span id="latitude">--</span>
+            </div>
+            <div class="coordinate-item">
+                <span>Longitude:</span>
+                <span id="longitude">--</span>
+            </div>
+            <div class="coordinate-item">
+                <span>Accuracy:</span>
+                <span id="accuracy">--</span>
+            </div>
+            <div class="coordinate-item">
+                <span>Altitude:</span>
+                <span id="altitude">--</span>
+            </div>
+            <div class="coordinate-item">
+                <span>Speed:</span>
+                <span id="speed">--</span>
+            </div>
+            <div class="coordinate-item">
+                <span>Locations Logged:</span>
+                <span id="count">0</span>
+            </div>
+        </div>
+        
+        <div class="buttons">
+            <button id="startBtn">Start Tracking</button>
+            <button id="stopBtn" disabled>Stop Tracking</button>
+            <button id="saveBtn" disabled>Save Data</button>
+        </div>
+        
+        <div class="log" id="log">
+            <!-- Location log will appear here -->
+        </div>
+    </div>
+    
+    <footer>
+        <p>Your location data is processed locally and not sent to any server.</p>
+    </footer>
+
+    <script>
+        // DOM elements
+        const statusEl = document.getElementById('status');
+        const latitudeEl = document.getElementById('latitude');
+        const longitudeEl = document.getElementById('longitude');
+        const accuracyEl = document.getElementById('accuracy');
+        const altitudeEl = document.getElementById('altitude');
+        const speedEl = document.getElementById('speed');
+        const countEl = document.getElementById('count');
+        const logEl = document.getElementById('log');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        
+        // Tracking variables
+        let isTracking = false;
+        let watchId = null;
+        let locationData = [];
+        let logCount = 0;
+        let lastPositionTime = 0;
+        
+        // Start tracking location
+        startBtn.addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                statusEl.innerHTML = "Geolocation is not supported by this browser.";
+                return;
+            }
+            
+            statusEl.innerHTML = "Starting location tracking...";
+            isTracking = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            saveBtn.disabled = true;
+            locationData = [];
+            logCount = 0;
+            countEl.textContent = logCount;
+            logEl.innerHTML = '';
+            lastPositionTime = 0;
+            
+            // Request high accuracy with a timeout
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            };
+            
+            // Use a single position request in a loop instead of watchPosition
+            // to avoid the async response error
+            startTrackingLoop(options);
+        });
+        
+        // Stop tracking location
+        stopBtn.addEventListener('click', () => {
+            isTracking = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            saveBtn.disabled = locationData.length === 0;
+            
+            statusEl.innerHTML = `Tracking stopped. ${locationData.length} locations logged.`;
+        });
+        
+        // Track location using a loop with setTimeout to avoid async issues
+        function startTrackingLoop(options) {
+            if (!isTracking) return;
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    // Only log if at least 1 second has passed since the last position
+                    const now = Date.now();
+                    if (now - lastPositionTime >= 1000) {
+                        updateLocation(position);
+                        lastPositionTime = now;
+                    }
+                    
+                    // Continue tracking
+                    if (isTracking) {
+                        setTimeout(() => startTrackingLoop(options), 1000);
+                    }
+                },
+                handleLocationError,
+                options
+            );
+        }
+        
+        // Save location data as JSON file
+        saveBtn.addEventListener('click', () => {
+            if (locationData.length === 0) {
+                statusEl.innerHTML = "No location data to save.";
+                return;
+            }
+            
+            // Create JSON blob
+            const jsonData = JSON.stringify(locationData, null, 2);
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            
+            // Create download link
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gps-locations-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+            
+            statusEl.innerHTML = `Data saved as ${a.download}`;
+        });
+        
+        // Update location information
+        function updateLocation(position) {
+            const { latitude, longitude, accuracy, altitude, speed } = position.coords;
+            const timestamp = new Date(position.timestamp).toLocaleString();
+            
+            // Update display
+            latitudeEl.textContent = latitude.toFixed(6);
+            longitudeEl.textContent = longitude.toFixed(6);
+            accuracyEl.textContent = `${accuracy.toFixed(1)} meters`;
+            altitudeEl.textContent = altitude ? `${altitude.toFixed(1)} meters` : 'Not available';
+            speedEl.textContent = speed ? `${(speed * 3.6).toFixed(1)} km/h` : 'Not available';
+            
+            // Determine accuracy level
+            let accuracyClass = 'low-accuracy';
+            if (accuracy < 10) accuracyClass = 'high-accuracy';
+            else if (accuracy < 50) accuracyClass = 'medium-accuracy';
+            
+            // Add to location data array
+            const location = {
+                latitude,
+                longitude,
+                accuracy,
+                altitude: altitude || null,
+                speed: speed || null,
+                timestamp: position.timestamp
+            };
+            
+            locationData.push(location);
+            logCount = locationData.length;
+            countEl.textContent = logCount;
+            
+            // Update status
+            statusEl.innerHTML = `Tracking active - ${logCount} locations logged`;
+            
+            // Add to log display
+            const logItem = document.createElement('div');
+            logItem.className = 'log-item';
+            logItem.innerHTML = `
+                ${timestamp} - 
+                Lat: ${latitude.toFixed(6)}, 
+                Lng: ${longitude.toFixed(6)} 
+                <span class="accuracy ${accuracyClass}">±${accuracy.toFixed(1)}m</span>
+            `;
+            
+            logEl.prepend(logItem);
+            
+            // Limit log display to 20 items
+            if (logEl.children.length > 20) {
+                logEl.removeChild(logEl.lastChild);
+            }
+            
+            // Enable save button if we have data
+            if (locationData.length > 0) {
+                saveBtn.disabled = false;
+            }
+        }
+        
+        // Handle location errors
+        function handleLocationError(error) {
+            let message = '';
+            
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    message = "Location access denied by user.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    message = "Location information is unavailable.";
+                    break;
+                case error.TIMEOUT:
+                    message = "Location request timed out.";
+                    break;
+                default:
+                    message = "An unknown error occurred.";
+                    break;
+            }
+            
+            statusEl.innerHTML = `Error: ${message}`;
+            
+            // Reset tracking state
+            isTracking = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            saveBtn.disabled = locationData.length === 0;
+        }
+    </script>
+</body>
+</html>
