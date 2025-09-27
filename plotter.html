@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OSM Plotter — Upload GPS JSON</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+
+  <style>
+    html,body { height:100%; margin:0; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial; }
+    #map { height: calc(100% - 64px); }
+    header { padding:10px 16px; display:flex; gap:12px; align-items:center; background:#0f172a; color:#fff; }
+    .btn { background:#0ea5a4; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
+    .btn:active { transform:translateY(1px); }
+    #info { margin-left:auto; color:#cfe8e7; font-size:13px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <strong>OSM GPS JSON Plotter</strong>
+  <input id="fileInput" type="file" accept=".json" class="btn" />
+  <div id="info">Upload a JSON file to plot GPS points</div>
+</header>
+
+<div id="map"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<script>
+const map = L.map('map').setView([20,0], 2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+let layerGroup = L.layerGroup().addTo(map);
+const fileInput = document.getElementById('fileInput');
+const info = document.getElementById('info');
+
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+// ---------- Parsing and plotting ----------
+function handleFile(file){
+  if(!file) return;
+  if(!file.name.toLowerCase().endsWith('.json')){
+    alert('Please upload a JSON file');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const json = JSON.parse(reader.result);
+      plotFromJson(json, file.name);
+    } catch(err){
+      alert('Invalid JSON: ' + err.message);
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function normalizeEntries(data){
+  if(!Array.isArray(data)) {
+    if (data.locations && Array.isArray(data.locations)) data = data.locations;
+    else if (data.data && Array.isArray(data.data)) data = data.data;
+    else throw new Error('JSON structure not recognized.');
+  }
+
+  const rows = [];
+  for(const item of data){
+    if(!item) continue;
+    let lat = item.latitude ?? item.lat ?? null;
+    let lon = item.longitude ?? item.lon ?? null;
+
+    if(lat == null || lon == null) continue;
+
+    let ts = item.timestamp ?? item.time ?? null;
+    if(typeof ts === 'string' && /^\d+$/.test(ts)) ts = Number(ts);
+    if(typeof ts === 'number' && ts < 1e12) ts *= 1000; // seconds → ms
+
+    rows.push({lat:Number(lat), lon:Number(lon), timestamp:ts});
+  }
+  return rows;
+}
+
+function tsToReadable(ts){
+  if(!ts) return 'N/A';
+  const d = new Date(ts);
+  return isNaN(d) ? String(ts) : d.toLocaleString();
+}
+
+function plotFromJson(json, sourceName){
+  layerGroup.clearLayers();
+
+  let rows;
+  try { rows = normalizeEntries(json); }
+  catch(err){
+    alert('Parse error: ' + err.message);
+    return;
+  }
+
+  if(rows.length === 0){
+    alert('No valid GPS points found.');
+    return;
+  }
+
+  const latlngs = rows.map(r => [r.lat, r.lon]);
+  rows.forEach((r,i)=>{
+    L.circleMarker([r.lat, r.lon], {radius:6, color:'blue'})
+      .bindPopup(`<b>#${i+1}</b><br>Lat: ${r.lat.toFixed(6)}<br>Lon: ${r.lon.toFixed(6)}<br>Time: ${tsToReadable(r.timestamp)}`)
+      .addTo(layerGroup);
+  });
+
+  if(latlngs.length > 1){
+    L.polyline(latlngs, {color:'red', weight:3}).addTo(layerGroup);
+    L.marker(latlngs[0]).bindPopup('Start').addTo(layerGroup);
+    L.marker(latlngs[latlngs.length-1]).bindPopup('End').addTo(layerGroup);
+  }
+
+  map.fitBounds(L.latLngBounds(latlngs).pad(0.2));
+  info.textContent = `Plotted ${rows.length} points from "${sourceName}"`;
+}
+</script>
+
+</body>
+</html>
